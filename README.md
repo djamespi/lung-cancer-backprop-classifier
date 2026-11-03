@@ -28,7 +28,7 @@ A Windows Forms desktop application developed in C# that predicts the likelihood
 
 ---
 
-## ⚙️ Model Training & Loss Progression
+## Model Training & Loss Progression
 
 ### Hyperparameters (Optimal Configuration)
 * **Hidden Nodes:** 8
