@@ -260,26 +260,34 @@ namespace BackProp
                 double[][] trX = scaler.Transform(train.X);
                 double[][] teX = scaler.Transform(test.X);
 
-                // 6. Training Loop
-                Console.WriteLine("[Training] Entering epoch loop. This may take a moment...");
+                // 6. Training Loop with MSE Loss Logging
+                Console.WriteLine("[Training] Entering epoch loop. Tracking Mean Squared Error (MSE)...");
                 Random rng = new Random(1);
 
                 for (int epoch = 1; epoch <= epochs; epoch++)
                 {
+                    double epochSquaredError = 0.0;
                     int[] order = DataPreprocessor.ShuffledIndices(trX.Length, rng);
+
                     foreach (int i in order)
                     {
                         for (int f = 0; f < trX[i].Length; f++)
                             _model.Network.setInputs(f, trX[i][f]);
 
-                        _model.Network.setDesiredOutput(0, train.Y[i][0]);
+                        double target = train.Y[i][0];
+                        _model.Network.setDesiredOutput(0, target);
                         _model.Network.learn();
+
+                        double output = _model.Network.getOutputData(0); // Note spelling in your library
+                        double error = target - output;
+                        epochSquaredError += error * error;
                     }
 
-                    // Log to console every 50 epochs or on the first/last epoch
-                    if (epoch == 1 || epoch % 50 == 0 || epoch == epochs)
+                    double epochMse = epochSquaredError / trX.Length;
+
+                    if (epoch == 1 || epoch % 100 == 0 || epoch == epochs)
                     {
-                        Console.WriteLine($"[Training Status] Completed Epoch {epoch} / {epochs}");
+                        Console.WriteLine($"[Epoch {epoch,4} / {epochs}] Loss (MSE): {epochMse:F6}");
                     }
                 }
 
