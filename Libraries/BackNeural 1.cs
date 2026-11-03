@@ -8,9 +8,11 @@ namespace Backprop
 		private INeuron [] ineuron;//approximatelty 3072
 		private HNeuron [] hneuron;// approx 64
 		private ONeuron [] oneuron;//approx 10
-		private const double LRPOUT =0.2;//learning rate for the the ouptput layer
-		private const double LRPIN = 0.15;// learning rate for the input layer
-		private double [] errorComponent; // approx 10;
+        //private const double LRPOUT =0.2;//learning rate for the the ouptput layer
+        //private const double LRPIN = 0.15;// learning rate for the input layer
+        public double LRPOUT = 0.2; // learning rate for the output layer
+        public double LRPIN = 0.15; // learning rate for the input layer
+        private double [] errorComponent; // approx 10;
 		private double [] errorDerivative;
 		private double [] desiredout;
 

@@ -56,6 +56,9 @@
     <Compile Include="Libraries\HiddenN 1.cs" />
     <Compile Include="Libraries\InputN 1.cs" />
     <Compile Include="Libraries\OuputN 1.cs" />
+    <Compile Include="ModelConfig.cs" />
+    <Compile Include="RiskModel.cs" />
+    <Compile Include="ScreeningQuestions.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Form1.resx">
