@@ -47,6 +47,8 @@ The grid search evaluated 18 distinct configurations. The top three performing a
 | 2 | 0.10 | 15 | 500 | 87.50% | 95.55% | 89.58% | 0.0141 |
 | 3 | 0.05 | 8 | 1000 | 87.50% | 95.55% | 89.58% | 0.0148 |
 
+![Hyperparameter Grid Search Chart](tuning_visualization.png)
+
 ### Optimal Configuration & Interpretation
 The optimal configuration is **8 Hidden Nodes, 1000 Epochs, and a 0.10 Learning Rate**. 
 
