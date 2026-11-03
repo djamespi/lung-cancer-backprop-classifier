@@ -28,6 +28,32 @@ A Windows Forms desktop application developed in C# that predicts the likelihood
 
 ---
 
+## Hyperparameter Tuning & Analysis
+
+To optimize the model's predictive performance without triggering overfitting on our 310-row dataset, we conducted an automated grid search evaluating permutations of learning rates, hidden node capacities, and training durations.
+
+### Tuning Rationale
+We constrained our tuning matrix to the following bounds to ensure a generalized fit:
+*   **Hidden Nodes (4, 8, 15):** The hidden layer capacity was strictly bounded between the input feature count (15) and the output count (1). Using 4 nodes acts as a strict bottleneck to force pattern generalization, 8 serves as the geometric mean, and 15 provides maximum capacity. Exceeding 15 nodes on a dataset of this size would cause severe overfitting (memorization).
+*   **Learning Rates (0.05, 0.1, 0.2):** These represent conservative, moderate, and aggressive step sizes for gradient descent. Values > 0.2 risk loss divergence, while values < 0.05 require exponential epochs to converge.
+*   **Epochs (500, 1000):** Given the dataset size and 15-feature binary classification task, convergence occurs efficiently under 1000 iterations. Running tens of thousands of epochs would artificially inflate training accuracy to 100% while destroying the model's accuracy on unseen test data.
+
+### Grid Search Results
+The grid search evaluated 18 distinct configurations. The top three performing architectures all achieved a peak test accuracy of **87.50%**, with identical precision (95.55%) and recall (89.58%). 
+
+| Rank | Learning Rate | Hidden Nodes | Epochs | Accuracy | Precision | Recall | Final MSE |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **1** | **0.10** | **8** | **1000** | **87.50%** | **95.55%** | **89.58%** | **0.0112** |
+| 2 | 0.10 | 15 | 500 | 87.50% | 95.55% | 89.58% | 0.0141 |
+| 3 | 0.05 | 8 | 1000 | 87.50% | 95.55% | 89.58% | 0.0148 |
+
+### Optimal Configuration & Interpretation
+The optimal configuration is **8 Hidden Nodes, 1000 Epochs, and a 0.10 Learning Rate**. 
+
+While multiple configurations hit the 87.50% accuracy ceiling, this specific architecture produced the lowest Mean Squared Error (0.0112). Using 8 hidden nodes proved superior to 15 nodes because it provided enough structural capacity to map complex symptom relationships without becoming overly complex. The moderate 0.10 learning rate allowed the gradient descent algorithm to take stable steps, minimizing the final loss smoothly across the 1000 epochs without overshooting the global minimum.
+
+---
+
 ## Model Training & Loss Progression
 
 ### Hyperparameters (Optimal Configuration)

@@ -1,21 +1,22 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using BackProp.HyperparameterTuning;
 
 namespace BackProp
 {
     internal static class Program
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
         [STAThread]
         static void Main()
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            // To run the automated tuning, UNCOMMENT the next two lines:
+            // AutoTuner.RunGridSearch(); 
+            // return;
+
+            // Otherwise, it runs the standard UI
             Application.Run(new Form1());
         }
     }
