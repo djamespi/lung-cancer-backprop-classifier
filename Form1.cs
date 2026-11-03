@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
+using Backprop;
 
 namespace BackProp
 {
     /// <summary>
     /// One-question-at-a-time screening wizard with a hidden Developer Panel.
+    /// Added Console logging for background process tracking and startup weight status.
     /// </summary>
     public partial class Form1 : Form
     {
@@ -37,6 +40,19 @@ namespace BackProp
 
             ResetScreening();
             pnlDev.Visible = false; // Hide dev panel by default
+
+            Console.WriteLine("[System] Form1 initialized and ready.");
+
+            // --- Startup Weight Status Indicator ---
+            if (_model.IsLoaded)
+            {
+                Console.WriteLine($"[Model Status] SUCCESS: Default weights '{ModelConfig.WeightsFile}' loaded successfully on startup.");
+            }
+            else
+            {
+                Console.WriteLine($"[Model Status] WARNING: {_model.StatusMessage} App is running in Demo Mode.");
+            }
+            Console.WriteLine("====================================");
         }
 
         // =====================================================================
@@ -104,6 +120,8 @@ namespace BackProp
             _lastAnswerAt = DateTime.UtcNow;
             _answers[_index] = value;
 
+            Console.WriteLine($"[Survey] Answered Q{_index + 1}: {value}");
+
             if (_index < _questions.Count - 1)
             {
                 _index++;
@@ -118,13 +136,20 @@ namespace BackProp
         private void ShowResult()
         {
             _showingResult = true;
+            Console.WriteLine("[Survey] Survey completed. Calculating prediction...");
+
             double[] features = new double[_questions.Count];
             for (int i = 0; i < features.Length; i++) features[i] = _answers[i].GetValueOrDefault();
 
             double score;
-            try { score = _model.Predict(features); }
+            try
+            {
+                score = _model.Predict(features);
+                Console.WriteLine($"[Survey] Prediction calculated. Raw score: {score:F4}");
+            }
             catch (Exception ex)
             {
+                Console.WriteLine($"[Error] Prediction failed: {ex.Message}");
                 MessageBox.Show("Error:\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ResetScreening();
                 return;
@@ -161,8 +186,16 @@ namespace BackProp
                 ShowQuestion();
             }
         }
-        private void btnReset_Click(object sender, EventArgs e) => ResetScreening();
-        private void btnContinue_Click(object sender, EventArgs e) => ResetScreening();
+        private void btnReset_Click(object sender, EventArgs e)
+        {
+            Console.WriteLine("[System] Survey reset by user.");
+            ResetScreening();
+        }
+        private void btnContinue_Click(object sender, EventArgs e)
+        {
+            Console.WriteLine("[System] Continuing to new survey.");
+            ResetScreening();
+        }
 
         // =====================================================================
         //  Developer & Training Panel
@@ -171,19 +204,131 @@ namespace BackProp
         private void btnDevToggle_Click(object sender, EventArgs e)
         {
             pnlDev.Visible = !pnlDev.Visible;
+            Console.WriteLine($"[System] Developer panel visibility toggled to {pnlDev.Visible}");
         }
 
         private void btnDevTrain_Click(object sender, EventArgs e)
         {
+            Console.WriteLine("\n====================================");
+            Console.WriteLine("[Training] Initialization started...");
+
             int hNodes = int.Parse(txtHNodes.Text);
             int epochs = int.Parse(txtEpochs.Text);
-            double learningRate = double.Parse(txtLR.Text); // Note: Requires modification of const in BackNeural 1.cs
+            double learningRate = double.Parse(txtLR.Text);
 
-            // Re-initialize network in the model with new hidden nodes
+            // 1. Re-initialize network in the model with new hidden nodes
             _model.ReinitializeNetwork(ModelConfig.InputCount, hNodes, ModelConfig.OutputCount);
 
-            // TODO for Groupmate: Insert CSV parsing and training loop here using _model.Network
-            MessageBox.Show($"Network re-initialized with {hNodes} hidden nodes.\n\nGroupmate: Insert CSV parsing and a loop of {epochs} epochs here.\nModify BackNeural 1.cs to apply Learning Rate: {learningRate}.", "Training Framework Ready");
+            // Set the new public learning rates
+            _model.Network.LRPIN = learningRate;
+            _model.Network.LRPOUT = learningRate;
+
+            Console.WriteLine($"[Training] Network structured with {ModelConfig.InputCount} In, {hNodes} Hidden, {ModelConfig.OutputCount} Out.");
+            Console.WriteLine($"[Training] Hyperparameters - LR: {learningRate}, Epochs: {epochs}");
+
+            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "survey lung cancer.csv");
+            if (!File.Exists(path))
+            {
+                Console.WriteLine($"[Training Error] CSV not found at {path}");
+                MessageBox.Show($"Could not find the dataset at:\n{path}\n\nPlease ensure the CSV's 'Copy to Output Directory' is set to 'Copy if newer'.", "Missing Data", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                Cursor.Current = Cursors.WaitCursor;
+
+                // 2. Load Data using groupmate's preprocessor
+                Console.WriteLine("[Training] Parsing CSV data...");
+                LoadReport report;
+                Dataset data = DataPreprocessor.Load(path, out report);
+                Console.WriteLine($"[Training] Dataset loaded. Final valid rows: {report.FinalRows}");
+
+                // 3. Stratified Split
+                Console.WriteLine("[Training] Performing stratified 80/20 train-test split...");
+                Dataset train, test;
+                DataPreprocessor.StratifiedSplit(data, 0.2, 42, out train, out test);
+
+                // 4. Oversample minority class to balance training data
+                Console.WriteLine("[Training] Oversampling minority class to balance dataset...");
+                train = DataPreprocessor.OversampleMinority(train, 7);
+
+                // 5. MinMax scale (fit on train only)
+                Console.WriteLine("[Training] Applying MinMaxScaler to normalize features...");
+                MinMaxScaler scaler = new MinMaxScaler();
+                scaler.Fit(train.X);
+                double[][] trX = scaler.Transform(train.X);
+                double[][] teX = scaler.Transform(test.X);
+
+                // 6. Training Loop
+                Console.WriteLine("[Training] Entering epoch loop. This may take a moment...");
+                Random rng = new Random(1);
+
+                for (int epoch = 1; epoch <= epochs; epoch++)
+                {
+                    int[] order = DataPreprocessor.ShuffledIndices(trX.Length, rng);
+                    foreach (int i in order)
+                    {
+                        for (int f = 0; f < trX[i].Length; f++)
+                            _model.Network.setInputs(f, trX[i][f]);
+
+                        _model.Network.setDesiredOutput(0, train.Y[i][0]);
+                        _model.Network.learn();
+                    }
+
+                    // Log to console every 50 epochs or on the first/last epoch
+                    if (epoch == 1 || epoch % 50 == 0 || epoch == epochs)
+                    {
+                        Console.WriteLine($"[Training Status] Completed Epoch {epoch} / {epochs}");
+                    }
+                }
+
+                // 7. Evaluation on Test Set
+                Console.WriteLine("[Training] Running test set evaluation...");
+                int tp = 0, tn = 0, fp = 0, fn = 0;
+                for (int i = 0; i < teX.Length; i++)
+                {
+                    for (int f = 0; f < teX[i].Length; f++)
+                        _model.Network.setInputs(f, teX[i][f]);
+
+                    _model.Network.run();
+                    double predVal = _model.Network.getOutputData(0);
+
+                    bool pred = predVal >= ModelConfig.DecisionThreshold;
+                    bool actual = test.Y[i][0] >= ModelConfig.DecisionThreshold;
+
+                    if (pred && actual) tp++;
+                    else if (!pred && !actual) tn++;
+                    else if (pred && !actual) fp++;
+                    else fn++;
+                }
+
+                double acc = (double)(tp + tn) / teX.Length;
+                double prec = tp + fp == 0 ? 0 : (double)tp / (tp + fp);
+                double rec = tp + fn == 0 ? 0 : (double)tp / (tp + fn);
+
+                Cursor.Current = Cursors.Default;
+
+                Console.WriteLine("[Training] Sequence Complete!");
+                Console.WriteLine($"[Training Metrics] Accuracy: {acc:P1} | Precision: {prec:P1} | Recall: {rec:P1}");
+                Console.WriteLine("====================================\n");
+
+                string results = $"Training Complete!\n\n" +
+                                 $"Epochs: {epochs} | LR: {learningRate}\n" +
+                                 $"Test Accuracy: {acc:P1}\n" +
+                                 $"Precision: {prec:P1} | Recall: {rec:P1}\n\n" +
+                                 $"--- Data Prep Report ---\n{report}\n\n" +
+                                 $"Age Min: {scaler.Min[ModelConfig.AgeIndex]}, Age Max: {scaler.Max[ModelConfig.AgeIndex]}\n\n" +
+                                 "Make sure to click 'Save Weights' to keep this tuning!";
+
+                MessageBox.Show(results, "Training Results", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                Cursor.Current = Cursors.Default;
+                Console.WriteLine($"[Training Error] {ex.Message}\n{ex.StackTrace}");
+                MessageBox.Show("Error during training:\n" + ex.Message, "Training Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void btnSaveWeights_Click(object sender, EventArgs e)
@@ -193,7 +338,12 @@ namespace BackProp
                 if (sfd.ShowDialog() == DialogResult.OK)
                 {
                     _model.SaveWeights(sfd.FileName);
+                    Console.WriteLine($"[System] Weights successfully saved to {sfd.FileName}");
                     MessageBox.Show("Weights saved successfully.");
+                }
+                else
+                {
+                    Console.WriteLine("[System] Save weights operation cancelled.");
                 }
             }
         }
@@ -205,7 +355,12 @@ namespace BackProp
                 if (ofd.ShowDialog() == DialogResult.OK)
                 {
                     _model.LoadWeights(ofd.FileName);
+                    Console.WriteLine($"[System] Weights successfully loaded from {ofd.FileName}");
                     MessageBox.Show("Weights loaded successfully.");
+                }
+                else
+                {
+                    Console.WriteLine("[System] Load weights operation cancelled.");
                 }
             }
         }
