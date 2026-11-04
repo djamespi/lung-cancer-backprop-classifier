@@ -1,42 +1,64 @@
 # Lung Cancer Risk Predictor (Custom C# Neural Network)
 
-A Windows Forms desktop application developed in C# that predicts the likelihood of lung cancer based on lifestyle and clinical risk factors. Built using a custom 3-layer Multi-Layer Perceptron (MLP) neural network adhering strictly to custom backpropagation classes without third-party ML frameworks.
+A Windows Forms desktop application developed in C# that predicts the likelihood of lung cancer based on lifestyle and clinical risk factors. Built using a custom 3-layer Multi-Layer Perceptron (MLP) neural network adhering strictly to custom backpropagation classes without third-party ML frameworks[cite: 5].
+
+---
+
+## ⚙️ How to Run & Access Developer Mode
+
+### 1. Launching the Application
+1. Open the `BackProp.sln` solution file in Visual Studio.
+2. Ensure the build target is set to `.NET Framework 4.8`.
+3. Press **Start** (F5) to compile and launch the Windows Forms interface.
+
+### 2. Accessing the Developer Panel
+By default, the application opens in "Demo Mode" as a patient screening wizard. To access the underlying neural network controls:
+1. Look for the small, discrete **Gear Icon (⚙)** in the very top-left corner of the application window.
+2. Click the icon to toggle the **Developer & Tune Mode** panel at the bottom of the screen.
+
+![Developer Mode Toggle Location](dev_mode_screenshot.png)
+
+### 3. Training & Tuning
+From the Developer Panel, you can:
+*   **Run Single Train:** Inputs the current hyperparameters (H-Nodes, Epochs, LR), trains the model, and displays test set metrics via a popup.
+*   **Auto-Tune -> CSV:** Executes an automated grid search across multiple hyperparameter combinations and exports the results to `HyperparameterTuning/tuning_results.csv`.
+*   **Save/Load Weights:** Once a model is trained, click **Save Weights** and name the file `lung_cancer_weights.txt` in the root directory. The application will automatically load these weights on future startups, bypassing Demo Mode.
 
 ---
 
 ## Project Overview
-* **Track:** Binary Classification (High Risk vs. Low Risk)
-* **Architecture:** 15 Input Neurons, 8 Hidden Neurons, 1 Output Neuron
-* **Activation Function:** Sigmoid
-* **Loss Function:** Mean Squared Error (MSE)
-* **Framework:** .NET Framework 4.8 (Windows Forms)
+- **Track:** Binary Classification (High Risk vs. Low Risk)[cite: 5]
+- **Architecture:** 15 Input Neurons, 8 Hidden Neurons, 1 Output Neuron
+- **Activation Function:** Sigmoid
+- **Loss Function:** Mean Squared Error (MSE)
+- **Framework:** .NET Framework 4.8 (Windows Forms)
 
 ---
 
 ## Dataset & Preprocessing
-* **Source:** [Kaggle - Survey Lung Cancer Dataset](https://www.kaggle.com/datasets/mysarahmadbhat/lung-cancer)
-* **Total Records:** 309 raw rows (33 duplicates removed, 276 final rows)
-* **Features (15 Inputs):**
-  * Demographics: Gender, Age
-  * Habits & Environment: Smoking, Alcohol Consumption, Peer Pressure
-  * Symptoms & Health: Yellow Fingers, Anxiety, Chronic Disease, Fatigue, Allergies, Wheezing, Coughing, Shortness of Breath, Difficulty Swallowing, Chest Pain
-* **Target (1 Output):** Lung Cancer (1 = Yes / High Risk, 0 = No / Low Risk)
-* **Pipeline (`DataPreprocessor.cs`):**
-  * Stratified 80/20 Train/Test split to preserve class distribution.
-  * Minority class oversampling to prevent imbalance bias.
-  * Min-Max normalization fitted on training data to scale features to the `[0, 1]` range.
+- **Source:** [Kaggle - Survey Lung Cancer Dataset](https://www.kaggle.com/datasets/mysarahmadbhat/lung-cancer)
+- **Total Records:** 309 raw rows (33 duplicates removed, 276 final rows)
+- **Features (15 Inputs):**
+  - Demographics: Gender, Age
+  - Habits & Environment: Smoking, Alcohol Consumption, Peer Pressure
+  - Symptoms & Health: Yellow Fingers, Anxiety, Chronic Disease, Fatigue, Allergies, Wheezing, Coughing, Shortness of Breath, Difficulty Swallowing, Chest Pain
+- **Target (1 Output):** Lung Cancer (1 = Yes / High Risk, 0 = No / Low Risk)
+- **Pipeline (`DataPreprocessor.cs`):**
+  - Stratified 80/20 Train/Test split to preserve class distribution[cite: 5].
+  - Minority class oversampling to prevent imbalance bias.
+  - Min-Max normalization fitted on training data to scale features to the `[0, 1]` range[cite: 5].
 
 ---
 
 ## Hyperparameter Tuning & Analysis
 
-To optimize the model's predictive performance without triggering overfitting on our 310-row dataset, we conducted an automated grid search evaluating permutations of learning rates, hidden node capacities, and training durations.
+To optimize the model's predictive performance without triggering overfitting on our 310-row dataset, we conducted an automated grid search evaluating permutations of learning rates, hidden node capacities, and training durations[cite: 5].
 
 ### Tuning Rationale
-We constrained our tuning matrix to the following bounds to ensure a generalized fit:
-*   **Hidden Nodes (4, 8, 15):** The hidden layer capacity was strictly bounded between the input feature count (15) and the output count (1). Using 4 nodes acts as a strict bottleneck to force pattern generalization, 8 serves as the geometric mean, and 15 provides maximum capacity. Exceeding 15 nodes on a dataset of this size would cause severe overfitting (memorization).
-*   **Learning Rates (0.05, 0.1, 0.2):** These represent conservative, moderate, and aggressive step sizes for gradient descent. Values > 0.2 risk loss divergence, while values < 0.05 require exponential epochs to converge.
-*   **Epochs (500, 1000):** Given the dataset size and 15-feature binary classification task, convergence occurs efficiently under 1000 iterations. Running tens of thousands of epochs would artificially inflate training accuracy to 100% while destroying the model's accuracy on unseen test data.
+We constrained our tuning matrix to the following bounds to ensure a generalized fit[cite: 5]:
+-   **Hidden Nodes (4, 8, 15):** The hidden layer capacity was strictly bounded between the input feature count (15) and the output count (1). Using 4 nodes acts as a strict bottleneck to force pattern generalization, 8 serves as the geometric mean, and 15 provides maximum capacity. Exceeding 15 nodes on a dataset of this size would cause severe overfitting (memorization).
+-   **Learning Rates (0.05, 0.1, 0.2):** These represent conservative, moderate, and aggressive step sizes for gradient descent. Values > 0.2 risk loss divergence, while values < 0.05 require exponential epochs to converge.
+-   **Epochs (500, 1000):** Given the dataset size and 15-feature binary classification task, convergence occurs efficiently under 1000 iterations. Running tens of thousands of epochs would artificially inflate training accuracy to 100% while destroying the model's accuracy on unseen test data.
 
 ### Grid Search Results
 The grid search evaluated 18 distinct configurations. The top three performing architectures all achieved a peak test accuracy of **87.50%**, with identical precision (95.55%) and recall (89.58%). 
@@ -50,7 +72,7 @@ The grid search evaluated 18 distinct configurations. The top three performing a
 ![Hyperparameter Grid Search Chart](tuning_visualization.png)
 
 ### Optimal Configuration & Interpretation
-The optimal configuration is **8 Hidden Nodes, 1000 Epochs, and a 0.10 Learning Rate**. 
+The optimal configuration is **8 Hidden Nodes, 1000 Epochs, and a 0.10 Learning Rate**[cite: 5]. 
 
 While multiple configurations hit the 87.50% accuracy ceiling, this specific architecture produced the lowest Mean Squared Error (0.0112). Using 8 hidden nodes proved superior to 15 nodes because it provided enough structural capacity to map complex symptom relationships without becoming overly complex. The moderate 0.10 learning rate allowed the gradient descent algorithm to take stable steps, minimizing the final loss smoothly across the 1000 epochs without overshooting the global minimum.
 
@@ -59,14 +81,14 @@ While multiple configurations hit the 87.50% accuracy ceiling, this specific arc
 ## Model Training & Loss Progression
 
 ### Hyperparameters (Optimal Configuration)
-* **Hidden Nodes:** 8
-* **Epochs:** 1000
-* **Learning Rate (LR):** 0.1
+- **Hidden Nodes:** 8
+- **Epochs:** 1000
+- **Learning Rate (LR):** 0.1
 
 ### Performance Metrics (Test Set)
-* **Accuracy:** 87.5%
-* **Precision:** 95.6%
-* **Recall:** 89.6%
+- **Accuracy:** 87.5%
+- **Precision:** 95.6%
+- **Recall:** 89.6%
 
 ### Visual Studio Output Log
 ```text
