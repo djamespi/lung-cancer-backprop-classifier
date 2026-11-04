@@ -1,0 +1,21 @@
+Raw rows read      : 309
+Malformed skipped  : 0
+Duplicates removed : 33
+Final rows         : 276
+Cancer (YES)       : 238 (86.2%)
+No cancer (NO)     : 38 (13.8%)
+Tuning train: 176 | Validation: 44 | Final train: 220 | Test: 56
+Selected 8 hidden nodes, 1000 epochs, learning rate 0.20. Validation balanced accuracy: 53.07 %
+Epoch    1 / 1000: MSE 0.245384
+Epoch  100 / 1000: MSE 0.026166
+Epoch  200 / 1000: MSE 0.017359
+Epoch  300 / 1000: MSE 0.013037
+Epoch  400 / 1000: MSE 0.012134
+Epoch  500 / 1000: MSE 0.011142
+Epoch  600 / 1000: MSE 0.010365
+Epoch  700 / 1000: MSE 0.010114
+Epoch  800 / 1000: MSE 0.009904
+Epoch  900 / 1000: MSE 0.009776
+Epoch 1000 / 1000: MSE 0.009290
+Test confusion matrix: TP=43, TN=5, FP=3, FN=5
+Test accuracy: 85.71 % | Precision: 93.48 % | Recall: 89.58 % | Specificity: 62.50 % | Balanced accuracy: 76.04 %

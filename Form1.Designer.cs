@@ -173,7 +173,7 @@ namespace BackProp
             this.txtLR.Name = "txtLR";
             this.txtLR.Size = new System.Drawing.Size(46, 25);
             this.txtLR.TabIndex = 9;
-            this.txtLR.Text = "0.15";
+            this.txtLR.Text = "0.20";
             // 
             // lblLR
             // 
