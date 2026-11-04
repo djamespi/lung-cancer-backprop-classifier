@@ -7,16 +7,25 @@ namespace BackProp
     internal static class Program
     {
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
+            if (args.Length == 2 && args[0] == "--tune")
+            {
+                try
+                {
+                    AutoTuner.RunGridSearch(args[1]);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine(ex);
+                    Environment.ExitCode = 1;
+                }
+                return;
+            }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // To run the automated tuning, UNCOMMENT the next two lines:
-            // AutoTuner.RunGridSearch(); 
-            // return;
-
-            // Otherwise, it runs the standard UI
             Application.Run(new Form1());
         }
     }

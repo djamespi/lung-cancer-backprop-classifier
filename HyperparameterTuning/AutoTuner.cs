@@ -1,105 +1,72 @@
 using System;
+using System.Globalization;
 using System.IO;
 using Backprop;
 
 namespace BackProp.HyperparameterTuning
 {
-    public static class AutoTuner
+    internal static class AutoTuner
     {
-        public static void RunGridSearch()
+        public static void RunGridSearch(string outputDirectory)
         {
-            int[] hiddenNodesMatrix = { 4, 8, 15 };
-            double[] learningRatesMatrix = { 0.05, 0.1, 0.2 };
-            int[] epochsMatrix = { 500, 1000 };
-
-            string dataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "survey lung cancer.csv");
-            if (!File.Exists(dataPath))
-            {
-                Console.WriteLine($"[Error] CSV not found at {dataPath}");
-                return;
-            }
-
-            // Ensure the directory exists in the build output folder
-            string outDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HyperparameterTuning");
-            Directory.CreateDirectory(outDir);
-            string exportPath = Path.Combine(outDir, "tuning_results.csv");
-
-            Console.WriteLine("\n[Auto-Tune] Starting Hyperparameter Grid Search...");
-            
+            Directory.CreateDirectory(outputDirectory);
             LoadReport report;
-            Dataset data = DataPreprocessor.Load(dataPath, out report);
-            Dataset train, test;
-            DataPreprocessor.StratifiedSplit(data, 0.2, 42, out train, out test);
-            train = DataPreprocessor.OversampleMinority(train, 7);
+            Dataset data = DataPreprocessor.Load(ModelTraining.DatasetPath, out report);
+            Dataset development, test, tuningTrain, validation;
+            DataPreprocessor.StratifiedSplit(data, 0.2, 42, out development, out test);
+            DataPreprocessor.StratifiedSplit(development, 0.2, 43, out tuningTrain, out validation);
 
-            MinMaxScaler scaler = new MinMaxScaler();
-            scaler.Fit(train.X);
-            double[][] trX = scaler.Transform(train.X);
-            double[][] teX = scaler.Transform(test.X);
-
-            Random rng = new Random(1);
-
-            using (StreamWriter sw = new StreamWriter(exportPath))
+            int bestHidden = 0, bestEpochs = 0;
+            double bestRate = 0, bestScore = -1, bestLoss = double.PositiveInfinity;
+            using (var csv = new StreamWriter(Path.Combine(outputDirectory, "tuning_results.csv")))
             {
-                sw.WriteLine("LearningRate,HiddenNodes,Epochs,Accuracy,Precision,Recall,FinalMSE");
-
-                foreach (double lr in learningRatesMatrix)
+                csv.WriteLine("LearningRate,HiddenNodes,Epochs,ValidationAccuracy,Precision,Recall,Specificity,BalancedAccuracy,FinalTrainingMSE");
+                foreach (double rate in new[] { 0.05, 0.10, 0.20 })
+                foreach (int hidden in new[] { 4, 8, 15 })
+                foreach (int epochs in new[] { 500, 1000 })
                 {
-                    foreach (int hn in hiddenNodesMatrix)
+                    MinMaxScaler scaler;
+                    double loss = 0;
+                    NeuralNet net = ModelTraining.Train(tuningTrain, hidden, epochs, rate, out scaler,
+                        (epoch, mse) => loss = mse);
+                    Metrics metrics = ModelTraining.Evaluate(net, validation, scaler);
+                    csv.WriteLine(Invariant($"{rate},{hidden},{epochs},{metrics.Accuracy:F6},{metrics.Precision:F6},{metrics.Recall:F6},{metrics.Specificity:F6},{metrics.BalancedAccuracy:F6},{loss:F6}"));
+                    if (metrics.BalancedAccuracy > bestScore ||
+                        (metrics.BalancedAccuracy == bestScore && loss < bestLoss))
                     {
-                        foreach (int ep in epochsMatrix)
-                        {
-                            Console.WriteLine($"Testing LR={lr}, HNodes={hn}, Epochs={ep}...");
-                            
-                            NeuralNet net = new NeuralNet(ModelConfig.InputCount, hn, ModelConfig.OutputCount);
-                            net.LRPIN = lr;
-                            net.LRPOUT = lr;
-
-                            double finalMse = 0.0;
-                            
-                            for (int epoch = 1; epoch <= ep; epoch++)
-                            {
-                                double totalLoss = 0.0;
-                                int[] order = DataPreprocessor.ShuffledIndices(trX.Length, rng);
-                                foreach (int i in order)
-                                {
-                                    for (int f = 0; f < trX[i].Length; f++) net.setInputs(f, trX[i][f]);
-
-                                    double expected = train.Y[i][0];
-                                    net.setDesiredOutput(0, expected);
-                                    net.learn();
-
-                                    double actual = net.getOutputData(0);
-                                    totalLoss += Math.Pow(expected - actual, 2);
-                                }
-                                if (epoch == ep) finalMse = totalLoss / trX.Length;
-                            }
-
-                            int tp = 0, tn = 0, fp = 0, fn = 0;
-                            for (int i = 0; i < teX.Length; i++)
-                            {
-                                for (int f = 0; f < teX[i].Length; f++) net.setInputs(f, teX[i][f]);
-
-                                net.run();
-                                bool pred = net.getOutputData(0) >= ModelConfig.DecisionThreshold;
-                                bool actual = test.Y[i][0] >= ModelConfig.DecisionThreshold;
-
-                                if (pred && actual) tp++;
-                                else if (!pred && !actual) tn++;
-                                else if (pred && !actual) fp++;
-                                else fn++;
-                            }
-
-                            double acc = (double)(tp + tn) / teX.Length;
-                            double prec = tp + fp == 0 ? 0 : (double)tp / (tp + fp);
-                            double rec = tp + fn == 0 ? 0 : (double)tp / (tp + fn);
-
-                            sw.WriteLine($"{lr},{hn},{ep},{acc},{prec},{rec},{finalMse}");
-                        }
+                        bestScore = metrics.BalancedAccuracy;
+                        bestLoss = loss;
+                        bestHidden = hidden;
+                        bestEpochs = epochs;
+                        bestRate = rate;
                     }
                 }
             }
-            Console.WriteLine($"\n[Auto-Tune] Complete! Results saved to:\n{exportPath}");
+
+            // Refit the selected model on all development rows, then evaluate the held-out test rows.
+            string weightsPath = Path.Combine(outputDirectory, ModelConfig.WeightsFile);
+            using (var log = new StreamWriter(Path.Combine(outputDirectory, "training_log.txt")))
+            {
+                log.WriteLine(report);
+                log.WriteLine($"Tuning train: {tuningTrain.Count} | Validation: {validation.Count} | Final train: {development.Count} | Test: {test.Count}");
+                log.WriteLine(Invariant($"Selected {bestHidden} hidden nodes, {bestEpochs} epochs, learning rate {bestRate:F2}. Validation balanced accuracy: {bestScore:P2}"));
+                MinMaxScaler scaler;
+                NeuralNet final = ModelTraining.Train(development, bestHidden, bestEpochs, bestRate, out scaler,
+                    (epoch, mse) =>
+                    {
+                        if (epoch == 1 || epoch % 100 == 0 || epoch == bestEpochs)
+                            log.WriteLine(Invariant($"Epoch {epoch,4} / {bestEpochs}: MSE {mse:F6}"));
+                    });
+                ModelTraining.CheckDeploymentScaling(scaler);
+                final.saveWeights(weightsPath);
+                var reloaded = new NeuralNet(ModelConfig.InputCount, bestHidden, ModelConfig.OutputCount);
+                reloaded.loadWeights(weightsPath);
+                Metrics result = ModelTraining.Evaluate(reloaded, test, scaler);
+                log.WriteLine($"Test confusion matrix: TP={result.TruePositive}, TN={result.TrueNegative}, FP={result.FalsePositive}, FN={result.FalseNegative}");
+                log.WriteLine(Invariant($"Test accuracy: {result.Accuracy:P2} | Precision: {result.Precision:P2} | Recall: {result.Recall:P2} | Specificity: {result.Specificity:P2} | Balanced accuracy: {result.BalancedAccuracy:P2}"));
+            }
         }
+
+        private static string Invariant(FormattableString value) => value.ToString(CultureInfo.InvariantCulture);
     }
 }
