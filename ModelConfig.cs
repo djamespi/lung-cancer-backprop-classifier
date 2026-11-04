@@ -18,8 +18,8 @@ namespace BackProp
         public const string WeightsFile = "lung_cancer_weights.txt";
 
         // ---- Feature encoding (must match the training CSV after cleaning) ----
-        public const double MaleValue = 0.0;     // GENDER M -> 0
-        public const double FemaleValue = 1.0;   // GENDER F -> 1
+        public const double MaleValue = 1.0;     // GENDER M -> 1
+        public const double FemaleValue = 0.0;   // GENDER F -> 0
         // Yes/No questions: Yes = 1, No = 0 (dataset's 2/1 becomes 1/0)
 
         // ---- Age scaling (use the TRAINING-set min and max from the data prep) ----

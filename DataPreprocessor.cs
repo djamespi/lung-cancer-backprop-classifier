@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using BackProp;
 
 namespace Backprop
 {
@@ -191,8 +192,8 @@ namespace Backprop
 			result = 0.0;
 			if (column == "GENDER")
 			{
-				if (value == "M") { result = 1.0; return true; }
-				if (value == "F") { result = 0.0; return true; }
+				if (value == "M") { result = ModelConfig.MaleValue; return true; }
+				if (value == "F") { result = ModelConfig.FemaleValue; return true; }
 				return false;
 			}
 			if (column == "AGE")
