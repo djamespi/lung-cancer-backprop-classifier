@@ -21,7 +21,7 @@ namespace Backprop
 			weights=new double[10];
 			this.setRandomWeights(10);
 		}
-		public HNeuron(int idnodata,int size)
+		public HNeuron(int idnodata,int size, Random random = null)
 		{
 			idno=idnodata;
 			hactivation=0.0;
@@ -29,7 +29,7 @@ namespace Backprop
 			wsize=size;
 			error=0.0;
 			weights=new double[wsize];
-			this.setRandomWeights(wsize);
+			this.setRandomWeights(wsize, random);
 		}
 		public void calculateErr(double [] der)
 		{
@@ -98,14 +98,14 @@ namespace Backprop
 			//change the bias of this neuron
 			bias+=(error*lrpin);
 		}
-		public void setRandomWeights(int size)
+		public void setRandomWeights(int size, Random random = null)
 		{
 			for(int x=0;x<size;x++)
 			{
-				weights[x]=this.randomweight();
+				weights[x]=this.randomweight(random);
 			}
 		}
-		private double randomweight()
+		private double randomweight(Random random = null)
 		{
 			/*int num;
 			DateTime x=DateTime.Now;
@@ -126,7 +126,7 @@ namespace Backprop
                 
 			int MinLimit = - 1000; 
 
-			double number = (double) (rand.Next(MinLimit,MaxLimit))/2000;
+			double number = (double) ((random ?? rand).Next(MinLimit,MaxLimit))/2000;
                 
 			return number; 
 		}

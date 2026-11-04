@@ -209,133 +209,51 @@ namespace BackProp
 
         private void btnDevTrain_Click(object sender, EventArgs e)
         {
-            Console.WriteLine("\n====================================");
-            Console.WriteLine("[Training] Initialization started...");
-
-            int hNodes = int.Parse(txtHNodes.Text);
-            int epochs = int.Parse(txtEpochs.Text);
-            double learningRate = double.Parse(txtLR.Text);
-
-            // 1. Re-initialize network in the model with new hidden nodes
-            _model.ReinitializeNetwork(ModelConfig.InputCount, hNodes, ModelConfig.OutputCount);
-
-            // Set the new public learning rates
-            _model.Network.LRPIN = learningRate;
-            _model.Network.LRPOUT = learningRate;
-
-            Console.WriteLine($"[Training] Network structured with {ModelConfig.InputCount} In, {hNodes} Hidden, {ModelConfig.OutputCount} Out.");
-            Console.WriteLine($"[Training] Hyperparameters - LR: {learningRate}, Epochs: {epochs}");
-
-            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "survey lung cancer.csv");
-            if (!File.Exists(path))
+            int hidden, epochs;
+            double rate;
+            if (!int.TryParse(txtHNodes.Text, out hidden) || hidden < 1 || hidden > ModelConfig.MaxHiddenCount ||
+                !int.TryParse(txtEpochs.Text, out epochs) || epochs < 1 || epochs > ModelConfig.MaxEpochs ||
+                !double.TryParse(txtLR.Text, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out rate) ||
+                !(rate > 0 && rate <= 1))
             {
-                Console.WriteLine($"[Training Error] CSV not found at {path}");
-                MessageBox.Show($"Could not find the dataset at:\n{path}\n\nPlease ensure the CSV's 'Copy to Output Directory' is set to 'Copy if newer'.", "Missing Data", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show($"Enter 1–{ModelConfig.MaxHiddenCount} hidden nodes, 1–{ModelConfig.MaxEpochs} epochs, and a learning rate greater than 0 and at most 1 (e.g. 0.10).",
+                    "Invalid Training Settings", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             try
             {
                 Cursor.Current = Cursors.WaitCursor;
-
-                // 2. Load Data using groupmate's preprocessor
-                Console.WriteLine("[Training] Parsing CSV data...");
                 LoadReport report;
-                Dataset data = DataPreprocessor.Load(path, out report);
-                Console.WriteLine($"[Training] Dataset loaded. Final valid rows: {report.FinalRows}");
-
-                // 3. Stratified Split
-                Console.WriteLine("[Training] Performing stratified 80/20 train-test split...");
+                Dataset data = DataPreprocessor.Load(ModelTraining.DatasetPath, out report);
                 Dataset train, test;
                 DataPreprocessor.StratifiedSplit(data, 0.2, 42, out train, out test);
-
-                // 4. Oversample minority class to balance training data
-                Console.WriteLine("[Training] Oversampling minority class to balance dataset...");
-                train = DataPreprocessor.OversampleMinority(train, 7);
-
-                // 5. MinMax scale (fit on train only)
-                Console.WriteLine("[Training] Applying MinMaxScaler to normalize features...");
-                MinMaxScaler scaler = new MinMaxScaler();
-                scaler.Fit(train.X);
-                double[][] trX = scaler.Transform(train.X);
-                double[][] teX = scaler.Transform(test.X);
-
-                // 6. Training Loop with MSE Loss Logging
-                Console.WriteLine("[Training] Entering epoch loop. Tracking Mean Squared Error (MSE)...");
-                Random rng = new Random(1);
-
-                for (int epoch = 1; epoch <= epochs; epoch++)
-                {
-                    double epochSquaredError = 0.0;
-                    int[] order = DataPreprocessor.ShuffledIndices(trX.Length, rng);
-
-                    foreach (int i in order)
+                MinMaxScaler scaler;
+                var network = ModelTraining.Train(train, hidden, epochs, rate, out scaler,
+                    (epoch, mse) =>
                     {
-                        for (int f = 0; f < trX[i].Length; f++)
-                            _model.Network.setInputs(f, trX[i][f]);
+                        if (epoch == 1 || epoch % 100 == 0 || epoch == epochs)
+                            Console.WriteLine($"[Epoch {epoch,4} / {epochs}] Loss (MSE): {mse:F6}");
+                    });
+                ModelTraining.CheckDeploymentScaling(scaler);
+                Metrics metrics = ModelTraining.Evaluate(network, test, scaler);
+                _model.UseTrainedNetwork(network);
+                if (_showingResult) ShowResult();
 
-                        double target = train.Y[i][0];
-                        _model.Network.setDesiredOutput(0, target);
-                        _model.Network.learn();
-
-                        double output = _model.Network.getOutputData(0); // Note spelling in your library
-                        double error = target - output;
-                        epochSquaredError += error * error;
-                    }
-
-                    double epochMse = epochSquaredError / trX.Length;
-
-                    if (epoch == 1 || epoch % 100 == 0 || epoch == epochs)
-                    {
-                        Console.WriteLine($"[Epoch {epoch,4} / {epochs}] Loss (MSE): {epochMse:F6}");
-                    }
-                }
-
-                // 7. Evaluation on Test Set
-                Console.WriteLine("[Training] Running test set evaluation...");
-                int tp = 0, tn = 0, fp = 0, fn = 0;
-                for (int i = 0; i < teX.Length; i++)
-                {
-                    for (int f = 0; f < teX[i].Length; f++)
-                        _model.Network.setInputs(f, teX[i][f]);
-
-                    _model.Network.run();
-                    double predVal = _model.Network.getOutputData(0);
-
-                    bool pred = predVal >= ModelConfig.DecisionThreshold;
-                    bool actual = test.Y[i][0] >= ModelConfig.DecisionThreshold;
-
-                    if (pred && actual) tp++;
-                    else if (!pred && !actual) tn++;
-                    else if (pred && !actual) fp++;
-                    else fn++;
-                }
-
-                double acc = (double)(tp + tn) / teX.Length;
-                double prec = tp + fp == 0 ? 0 : (double)tp / (tp + fp);
-                double rec = tp + fn == 0 ? 0 : (double)tp / (tp + fn);
-
-                Cursor.Current = Cursors.Default;
-
-                Console.WriteLine("[Training] Sequence Complete!");
-                Console.WriteLine($"[Training Metrics] Accuracy: {acc:P1} | Precision: {prec:P1} | Recall: {rec:P1}");
-                Console.WriteLine("====================================\n");
-
-                string results = $"Training Complete!\n\n" +
-                                 $"Epochs: {epochs} | LR: {learningRate}\n" +
-                                 $"Test Accuracy: {acc:P1}\n" +
-                                 $"Precision: {prec:P1} | Recall: {rec:P1}\n\n" +
-                                 $"--- Data Prep Report ---\n{report}\n\n" +
-                                 $"Age Min: {scaler.Min[ModelConfig.AgeIndex]}, Age Max: {scaler.Max[ModelConfig.AgeIndex]}\n\n" +
-                                 "Make sure to click 'Save Weights' to keep this tuning!";
-
+                string results = $"Training complete. The new model is ready for predictions.\n\n" +
+                    $"Test accuracy: {metrics.Accuracy:P1}\nPrecision: {metrics.Precision:P1} | Recall: {metrics.Recall:P1}\n\n" +
+                    $"{report}\n\nClick Save Weights to keep this model for a future session.";
                 MessageBox.Show(results, "Training Results", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
+                MessageBox.Show("Error during training:\n" + ex.Message, "Training Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
                 Cursor.Current = Cursors.Default;
-                Console.WriteLine($"[Training Error] {ex.Message}\n{ex.StackTrace}");
-                MessageBox.Show("Error during training:\n" + ex.Message, "Training Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

@@ -28,7 +28,7 @@ namespace Backprop
 			errorDerivative=new double[10];
 			createNeurons(ineuron.Length,hneuron.Length,oneuron.Length);
 		}
-		public NeuralNet(int input,int hidden,int output)
+		public NeuralNet(int input,int hidden,int output, Random random = null)
 		{
 			ineuron=new INeuron[input];
 			hneuron=new HNeuron[hidden];
@@ -36,17 +36,17 @@ namespace Backprop
 			errorComponent=new double[output];
 			errorDerivative=new double[output];
 			desiredout=new double[output];
-			createNeurons(ineuron.Length,hneuron.Length,oneuron.Length);
+			createNeurons(ineuron.Length,hneuron.Length,oneuron.Length,random);
 		}
-		public void createNeurons(int i,int h,int o)
+		public void createNeurons(int i,int h,int o, Random random = null)
 		{
 			for (int x=0;x<i;x++)
 			{
-				ineuron[x]=new INeuron(x,h);
+				ineuron[x]=new INeuron(x,h,random);
 			}
 			for (int x=0;x<h;x++)
 			{
-				hneuron[x]=new HNeuron(x,o);
+				hneuron[x]=new HNeuron(x,o,random);
 			}
 			for (int x=0;x<o;x++)
 			{

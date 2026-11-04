@@ -8,7 +8,6 @@ namespace Backprop
 		private double input;
 		private double [] weights; // 64 2 neurons to be connected
 		private int wsize;
-		private int num;
 		static System.Random rand;
 		public INeuron()
 		{
@@ -18,15 +17,15 @@ namespace Backprop
 			weights=new double[wsize];
 			this.setRandomWeights(wsize);
 		}
-		public INeuron(int idnodata,int size)
+		public INeuron(int idnodata,int size, Random random = null)
 		{
 			idno=idnodata;
 			input=0;
 			wsize=size;
 			weights=new double[wsize];
-			this.setRandomWeights(wsize);
+			this.setRandomWeights(wsize, random);
 		}
-		private double randomweight()
+		private double randomweight(Random random = null)
 		{
 			/*DateTime x=DateTime.Now;
 			Random rnd=new Random((int)x.Millisecond);
@@ -47,15 +46,15 @@ namespace Backprop
                 
 			int MinLimit = - 1000; 
 
-			double number = (double) (rand.Next(MinLimit,MaxLimit))/2000;
+			double number = (double) ((random ?? rand).Next(MinLimit,MaxLimit))/2000;
                 
 			return number; 
 		}
-		public void setRandomWeights(int size)
+		public void setRandomWeights(int size, Random random = null)
 		{
 			for(int x=0;x<size;x++)
 			{
-				weights[x]=this.randomweight();
+				weights[x]=this.randomweight(random);
 			}		
 		
 		}

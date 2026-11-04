@@ -16,13 +16,11 @@ namespace BackProp
             LoadWeights(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModelConfig.WeightsFile));
         }
 
-        public NeuralNet Network => _net;
-
-        public void ReinitializeNetwork(int inputs, int hidden, int output)
+        internal void UseTrainedNetwork(NeuralNet network)
         {
-            _net = new NeuralNet(inputs, hidden, output);
-            IsLoaded = false;
-            StatusMessage = "Network reinitialized for training.";
+            _net = network;
+            IsLoaded = true;
+            StatusMessage = "Training complete.";
         }
 
         public void SaveWeights(string path)
