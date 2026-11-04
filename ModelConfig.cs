@@ -11,6 +11,7 @@ namespace BackProp
         // ---- Network shape (must match the network that produced the weights file) ----
         public const int InputCount = 15;   // 15 survey features (see ScreeningQuestions)
         public const int HiddenCount = 8;   // TODO: set to the hidden size chosen after tuning
+        public const int MaxHiddenCount = 256;
         public const int OutputCount = 1;   // 1 output neuron = risk score between 0 and 1
 
         // ---- Saved weights (written by NeuralNet.saveWeights after training) ----

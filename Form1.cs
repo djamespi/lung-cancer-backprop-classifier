@@ -341,35 +341,36 @@ namespace BackProp
 
         private void btnSaveWeights_Click(object sender, EventArgs e)
         {
-            using (SaveFileDialog sfd = new SaveFileDialog { Filter = "Text Files|*.txt" })
+            if (!_model.IsLoaded)
             {
-                if (sfd.ShowDialog() == DialogResult.OK)
+                MessageBox.Show("Train or load a model before saving weights.");
+                return;
+            }
+
+            using (var dialog = new SaveFileDialog { Filter = "Text Files|*.txt" })
+            {
+                if (dialog.ShowDialog() != DialogResult.OK) return;
+                try
                 {
-                    _model.SaveWeights(sfd.FileName);
-                    Console.WriteLine($"[System] Weights successfully saved to {sfd.FileName}");
+                    _model.SaveWeights(dialog.FileName);
                     MessageBox.Show("Weights saved successfully.");
                 }
-                else
+                catch (Exception ex)
                 {
-                    Console.WriteLine("[System] Save weights operation cancelled.");
+                    MessageBox.Show(ex.Message, "Could Not Save Weights", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
 
         private void btnLoadWeights_Click(object sender, EventArgs e)
         {
-            using (OpenFileDialog ofd = new OpenFileDialog { Filter = "Text Files|*.txt" })
+            using (var dialog = new OpenFileDialog { Filter = "Text Files|*.txt" })
             {
-                if (ofd.ShowDialog() == DialogResult.OK)
-                {
-                    _model.LoadWeights(ofd.FileName);
-                    Console.WriteLine($"[System] Weights successfully loaded from {ofd.FileName}");
-                    MessageBox.Show("Weights loaded successfully.");
-                }
-                else
-                {
-                    Console.WriteLine("[System] Load weights operation cancelled.");
-                }
+                if (dialog.ShowDialog() != DialogResult.OK) return;
+                bool loaded = _model.LoadWeights(dialog.FileName);
+                if (loaded && _showingResult) ShowResult();
+                MessageBox.Show(_model.StatusMessage, "Load Weights", MessageBoxButtons.OK,
+                    loaded ? MessageBoxIcon.Information : MessageBoxIcon.Error);
             }
         }
     }

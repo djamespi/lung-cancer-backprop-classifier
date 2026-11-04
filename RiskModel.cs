@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 using Backprop;
 
 namespace BackProp
@@ -12,14 +11,12 @@ namespace BackProp
         public bool IsLoaded { get; private set; }
         public string StatusMessage { get; private set; } = "";
 
-        // Give the groupmate direct access to the network for their training loop
-        public NeuralNet Network => _net;
-
         public RiskModel()
         {
-            _net = new NeuralNet(ModelConfig.InputCount, ModelConfig.HiddenCount, ModelConfig.OutputCount);
-            TryLoadWeights(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModelConfig.WeightsFile));
+            LoadWeights(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModelConfig.WeightsFile));
         }
+
+        public NeuralNet Network => _net;
 
         public void ReinitializeNetwork(int inputs, int hidden, int output)
         {
@@ -30,31 +27,48 @@ namespace BackProp
 
         public void SaveWeights(string path)
         {
-            _net.saveWeights(path);
+            if (!IsLoaded) throw new InvalidOperationException("Train or load a model before saving weights.");
+            string temporaryPath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path)), Path.GetRandomFileName());
+            try
+            {
+                _net.saveWeights(temporaryPath);
+                if (File.Exists(path)) File.Replace(temporaryPath, path, null);
+                else File.Move(temporaryPath, path);
+            }
+            finally
+            {
+                File.Delete(temporaryPath);
+            }
         }
 
-        public void LoadWeights(string path)
-        {
-            TryLoadWeights(path);
-        }
-
-        private void TryLoadWeights(string path)
+        public bool LoadWeights(string path)
         {
             if (!File.Exists(path))
             {
                 StatusMessage = "Weights file not found at: " + path;
-                return;
+                return false;
             }
 
             try
             {
-                _net.loadWeights(path);
+                double[] values = NeuralNet.ReadWeightValues(path);
+                int weightsPerHidden = ModelConfig.InputCount + ModelConfig.OutputCount + 1;
+                int hiddenWeights = values.Length - ModelConfig.OutputCount;
+                int hidden = hiddenWeights / weightsPerHidden;
+                if (hidden < 1 || hidden > ModelConfig.MaxHiddenCount || hiddenWeights % weightsPerHidden != 0)
+                    throw new InvalidDataException("The weights file has an invalid number of values for this survey model.");
+
+                var candidate = new NeuralNet(ModelConfig.InputCount, hidden, ModelConfig.OutputCount);
+                candidate.LoadWeightValues(values);
+                _net = candidate;
                 IsLoaded = true;
                 StatusMessage = "Weights loaded successfully.";
+                return true;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException || ex is InvalidDataException || ex is UnauthorizedAccessException)
             {
                 StatusMessage = "Could not read weights: " + ex.Message;
+                return false;
             }
         }
 

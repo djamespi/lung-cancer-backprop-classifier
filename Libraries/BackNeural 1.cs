@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Globalization;
+using System.Linq;
 
 namespace Backprop
 {
@@ -164,54 +166,56 @@ namespace Backprop
 				for (int x=0;x<ineuron.Length;x++)//saving the weights of the input layer
 				{
 					for(int y=0;y<hneuron.Length;y++)
-					sw.WriteLine(ineuron[x].getWeight(y));
+					sw.WriteLine(ineuron[x].getWeight(y).ToString("R", CultureInfo.InvariantCulture));
 				}
 				for(int x=0;x<hneuron.Length;x++)//saving the wieghts of the hidden layer
 				{
 					for (int y=0;y<oneuron.Length;y++)
 					{
-						sw.WriteLine(hneuron[x].getWeight(y));
+						sw.WriteLine(hneuron[x].getWeight(y).ToString("R", CultureInfo.InvariantCulture));
 					}
 				}
 				for (int x=0;x<hneuron.Length;x++)// saving hidden layer bias
 				{
-					sw.WriteLine(hneuron[x].getBias());
+					sw.WriteLine(hneuron[x].getBias().ToString("R", CultureInfo.InvariantCulture));
 				}
 				for (int x=0;x<oneuron.Length;x++)// saving output layer bias
 				{
-					sw.WriteLine(oneuron[x].getBias());
+					sw.WriteLine(oneuron[x].getBias().ToString("R", CultureInfo.InvariantCulture));
 				}
 			}// end of streamwriter
 		}
 
-		public void loadWeights(String path)//load data 
+		public void loadWeights(string path) => LoadWeightValues(ReadWeightValues(path));
+
+		public static double[] ReadWeightValues(string path)
 		{
-			using (StreamReader sr = new StreamReader(path)) 
+			return File.ReadAllLines(path).Select(line =>
 			{
-				for (int x=0;x<ineuron.Length;x++)//loading the weights of the input layer
-				{
-					for(int y=0;y<hneuron.Length;y++)
-					{
-						ineuron[x].setWeight(y,Convert.ToDouble(sr.ReadLine()));
-					}
-				}
-				for(int x=0;x<hneuron.Length;x++)//loading the wieghts of the hidden layer
-				{
-					for (int y=0;y<oneuron.Length;y++)
-					{
-						hneuron[x].setWeight(y,Convert.ToDouble(sr.ReadLine()));
-					}
-				}
-				for (int x=0;x<hneuron.Length;x++)// loading hidden layer bias
-				{
-					hneuron[x].setBias(Convert.ToDouble(sr.ReadLine()));
-				}
-				for (int x=0;x<oneuron.Length;x++)// loading output layer bias
-				{
-					oneuron[x].setBias(Convert.ToDouble(sr.ReadLine()));
-				}
-			}//end of streamreader
-		
+				double value;
+				if ((!double.TryParse(line, NumberStyles.Float, CultureInfo.InvariantCulture, out value) &&
+				     !double.TryParse(line, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) ||
+				     double.IsNaN(value) || double.IsInfinity(value))
+					throw new InvalidDataException("The weights file contains an invalid number.");
+				return value;
+			}).ToArray();
 		}
-	}//end of neural net
+
+		public void LoadWeightValues(double[] values)
+		{
+			int expected = (ineuron.Length + oneuron.Length + 1) * hneuron.Length + oneuron.Length;
+			if (values.Length != expected)
+				throw new InvalidDataException("The weights file does not match the network dimensions.");
+
+			int index = 0;
+			foreach (INeuron input in ineuron)
+				for (int hidden = 0; hidden < hneuron.Length; hidden++)
+					input.setWeight(hidden, values[index++]);
+			foreach (HNeuron hidden in hneuron)
+				for (int output = 0; output < oneuron.Length; output++)
+					hidden.setWeight(output, values[index++]);
+			foreach (HNeuron hidden in hneuron) hidden.setBias(values[index++]);
+			foreach (ONeuron output in oneuron) output.setBias(values[index++]);
+		}
+	}
 }
