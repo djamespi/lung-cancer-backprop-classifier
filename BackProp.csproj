@@ -53,6 +53,7 @@
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
+    <Compile Include="HyperparameterTuning\AutoTuner.cs" />
     <Compile Include="Libraries\BackNeural 1.cs" />
     <Compile Include="Libraries\HiddenN 1.cs" />
     <Compile Include="Libraries\InputN 1.cs" />
