@@ -4,7 +4,16 @@ A Windows Forms desktop application developed in C# that predicts the likelihood
 
 ---
 
-## ⚙️ How to Run & Access Developer Mode
+## Project Overview
+- **Track:** Binary Classification (High Risk vs. Low Risk)
+- **Architecture:** 15 Input Neurons, 8 Hidden Neurons, 1 Output Neuron
+- **Activation Function:** Sigmoid
+- **Loss Function:** Mean Squared Error (MSE)
+- **Framework:** .NET Framework 4.8 (Windows Forms)
+
+---
+
+## How to Run & Access Developer Mode
 
 ### 1. Launching the Application
 1. Open the `BackProp.sln` solution file in Visual Studio.
@@ -26,12 +35,9 @@ From the Developer Panel, you can:
 
 ---
 
-## Project Overview
-- **Track:** Binary Classification (High Risk vs. Low Risk)[cite: 5]
-- **Architecture:** 15 Input Neurons, 8 Hidden Neurons, 1 Output Neuron
-- **Activation Function:** Sigmoid
-- **Loss Function:** Mean Squared Error (MSE)
-- **Framework:** .NET Framework 4.8 (Windows Forms)
+## Technical Details & File Handling
+- **Default Weights Loading:** On startup, `RiskModel.cs` automatically utilizes `AppDomain.CurrentDomain.BaseDirectory` to search the compiled output folder (`bin/Debug` or `bin/Release`) for `lung_cancer_weights.txt`. If found, the application silently loads the network weights and transitions out of Demo Mode to live prediction. Ensure the file's property is set to *Copy to Output Directory: Copy if newer* in Visual Studio.
+- **Default Dataset Routing:** The training and auto-tuning functions are configured by default to locate the training data at `Data/survey lung cancer.csv` relative to the executable.
 
 ---
 
