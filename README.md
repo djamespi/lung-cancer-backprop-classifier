@@ -13,31 +13,29 @@ A Windows Forms desktop application developed in C# that predicts the likelihood
 
 ---
 
-## How to Run & Access Developer Mode
+## Run in Visual Studio Community
 
-### 1. Launching the Application
-1. Open the `BackProp.sln` solution file in Visual Studio.
-2. Ensure the build target is set to `.NET Framework 4.8`.
-3. Press **Start** (F5) to compile and launch the Windows Forms interface.
+1. Install the **.NET desktop development** workload and **.NET Framework 4.8 targeting pack** in Visual Studio Installer.
+2. Open `BackProp.slnx`, build the solution, and press **F5**. If your version does not open `.slnx` files, open `BackProp.csproj`.
+3. Complete the questionnaire. The app loads `lung_cancer_weights.txt` from the build output automatically. The build copies both the weights and the survey CSV.
+4. Click the gear icon to open the developer panel. Set the hidden nodes, epochs, and learning rate, then click **Run Training**. Predictions use the new model as soon as training succeeds.
+5. Use **Save Weights** to keep the trained model and **Load Weights** to restore it in a later session.
 
-### 2. Accessing the Developer Panel
-By default, the application opens in "Demo Mode" as a patient screening wizard. To access the underlying neural network controls:
-1. Look for the small, discrete **Gear Icon (⚙)** in the very top-left corner of the application window.
-2. Click the icon to toggle the **Developer & Tune Mode** panel at the bottom of the screen.
+![Gear icon used to open the developer panel](dev_mode_screenshot.png)
 
-![Developer Mode Toggle Location](dev_mode_screenshot.png)
+The executable looks for the default weights at `lung_cancer_weights.txt` and the survey at `Data/survey lung cancer.csv`, both relative to its output folder (`bin/Debug` or `bin/Release`). To make a saved model the project default, replace `lung_cancer_weights.txt` in the project folder and rebuild so Visual Studio copies the updated file to the output folder.
 
-### 3. Training & Tuning
-From the Developer Panel, you can:
-*   **Run Single Train:** Inputs the current hyperparameters (H-Nodes, Epochs, LR), trains the model, and displays test set metrics via a popup.
-*   **Auto-Tune -> CSV:** Executes an automated grid search across multiple hyperparameter combinations and exports the results to `HyperparameterTuning/tuning_results.csv`.
-*   **Save/Load Weights:** Once a model is trained, click **Save Weights** and name the file `lung_cancer_weights.txt` in the root directory. The application will automatically load these weights on future startups, bypassing Demo Mode.
+## Reproduce tuning and final evaluation
 
----
+Build **Release** in Visual Studio. In PowerShell at the project root, run:
 
-## Technical Details & File Handling
-- **Default Weights Loading:** On startup, `RiskModel.cs` automatically utilizes `AppDomain.CurrentDomain.BaseDirectory` to search the compiled output folder (`bin/Debug` or `bin/Release`) for `lung_cancer_weights.txt`. If found, the application silently loads the network weights and transitions out of Demo Mode to live prediction. Ensure the file's property is set to *Copy to Output Directory: Copy if newer* in Visual Studio.
-- **Default Dataset Routing:** The training and auto-tuning functions are configured by default to locate the training data at `Data/survey lung cancer.csv` relative to the executable.
+```powershell
+$run = Start-Process -FilePath .\bin\Release\BackProp.exe -ArgumentList '--tune', 'model-run' -NoNewWindow -Wait -PassThru
+if ($run.ExitCode -ne 0) { throw "Model run failed with exit code $($run.ExitCode)." }
+Get-Content .\model-run\training_log.txt
+```
+
+The command writes all 18 validation trials, the final training log, and the selected model weights to `model-run`. It uses fixed seeds for the split, initialization, oversampling, and shuffle.
 
 ---
 
