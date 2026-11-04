@@ -1,4 +1,5 @@
 # Lung Cancer Risk Predictor (Custom C# Neural Network)
+**Developed by BENITEZ, SILVA**
 
 A Windows Forms class project that uses a custom three-layer C# neural network to classify lung cancer survey records. The questionnaire displays the model score for demonstration purposes.
 
@@ -74,5 +75,4 @@ After selecting the settings, the pipeline refits on all 220 development rows, s
 
 The confusion matrix is 43 true positives, 5 true negatives, 3 false positives, and 5 false negatives. Predicting the majority class for every test row also gives 85.71% accuracy and gives 50.00% balanced accuracy. The trained model correctly classifies 5 of the 8 negative examples and misses 5 of the 48 positive examples.
 
-**Developed by BENITEZ, SILVA**
 
